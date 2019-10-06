@@ -25,13 +25,25 @@ export default class AccountKit extends PureComponent {
     loginType: AccountKitLoginType.PHONE
   };
 
+  state = {
+    err: null,
+    initialized: false
+  }
+
+  constructor(props) {
+    super(props)
+
+    this.handleSignIn = this.signIn.bind(this)
+  }
+
   componentDidMount() {
     this.loadSDK()
   }
 
   loadSDK() {
     // Verify loaded script
-    if (!document.querySelector('script[src*="https://sdk.accountkit.com"]')) {
+    if (document.querySelector('script[src*="https://sdk.accountkit.com"]')) {
+      this.setState({initialized: true})
       return
     }
 
@@ -44,28 +56,48 @@ export default class AccountKit extends PureComponent {
     )
     tag.setAttribute('id', 'account-kit')
     tag.setAttribute('type', 'text/javascript')
+    tag.onload = () => this.initSDK()
+
     document.head.appendChild(tag)
   }
 
   initSDK() {
-    try {
-      const {appId, csrf, version} = this.props
+    const {appId, csrf, version} = this.props
+    let timer = null
 
-      window.AccountKit.init({
-        appId,
-        state: csrf,
-        version,
-        fbAppEventsEnabled: false
-      })
-    } catch (e) {
-      // FB Account SDK was initialized
+    const initialization = () => {
+      clearTimeout(timer)
+      timer = setTimeout(() => {
+        if (window.AccountKit && !window.AccountKit.doNotLinkToSDKDirectly) {
+          try {
+            window.AccountKit.init({
+              appId,
+              state: csrf,
+              version,
+              fbAppEventsEnabled: false
+            })
+            this.setState({initialized: true})
+          } catch (err) {
+            this.setState({err, initialized: false})
+          }
+        } else {
+          initialization()
+        }
+      }, 300)
     }
+
+    initialization()
   }
 
   signIn() {
-    this.initSDK()
+    const {err, initialized} = this.state
 
-    const {loginType, onResponse, countryCode, phoneNumber, emailAddress} = this.props;
+    if (err || !initialized) {
+      console.warn('Authorization is temporarily unavailable')
+      return
+    }
+
+    const {loginType, onResponse, countryCode, phoneNumber, emailAddress} = this.props
     const options = {}
 
     if (countryCode) {
@@ -82,8 +114,12 @@ export default class AccountKit extends PureComponent {
   }
 
   render() {
+    const {err, initialized} = this.state
+
     return this.props.children({
-      onClick: this.signIn.bind(this)
+      onClick: this.handleSignIn,
+      err,
+      initialized
     })
   }
 }
