@@ -1,7 +1,7 @@
-import ExampleComponent from './'
+import AccountKitComponent from './'
 
 describe('ExampleComponent', () => {
   it('is truthy', () => {
-    expect(ExampleComponent).toBeTruthy()
+    expect(AccountKitComponent).toBeTruthy()
   })
 })
